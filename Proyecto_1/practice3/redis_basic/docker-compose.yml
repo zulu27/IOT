@@ -1,0 +1,31 @@
+services:
+  # Web Application Service
+  web-app:
+    build: .
+    ports:
+      - "5000:8000"
+    volumes:
+      - .:/code
+    depends_on:
+      - redis-db
+
+  # Redis Database Service
+  redis-db:
+    image: "redis:alpine"
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+
+  # Python Service para pruebas manuales con uv
+  python_app:
+    build: 
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: python_app
+    volumes:
+      - .:/app
+    working_dir: /app
+    # Comando para mantener el contenedor encendido indefinidamente
+    command: tail -f /dev/null
+    depends_on:
+      - redis-db

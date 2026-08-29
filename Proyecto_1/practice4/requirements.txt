@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+pymongo
+pika
+python-multipart
+pymongo
+requests
