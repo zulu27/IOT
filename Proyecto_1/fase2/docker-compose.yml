@@ -392,10 +392,15 @@ services:
     environment:
       CENTRAL_DATABASE_URL: mysql+pymysql://${CENTRAL_MYSQL_USER:-central}:${CENTRAL_MYSQL_PASSWORD:-central_password}@central-mysql:3306/${CENTRAL_MYSQL_DATABASE:-central}
       TOP_PRODUCTS_LIMIT: ${TOP_PRODUCTS_LIMIT:-10}
+      #se agrega para poder ingresar a el rabbitmq desde el contenedor de central-api
+      RABBITMQ_URL: amqp://user:password@rabbitmq:5672/
     ports:
       - "${CENTRAL_API_HOST_PORT:-18100}:8000"
     depends_on:
       central-mysql:
+        condition: service_healthy
+      #revisa que rabbitmq este saludable antes de iniciar central-api
+      rabbitmq:
         condition: service_healthy
     networks:
       # Head office's LAN, plus the simulated internet so the stores' forwarders
@@ -407,6 +412,47 @@ services:
         limits:
           cpus: "2.0"
           memory: 2G
+
+  #======================================================================
+  #Aqui esta el contenedor de rabbitmq y el cliente de python para probar la conexion
+  #======================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: central-rabbitmq
+    ports:
+    #puerto de rabbit mq
+    #los parentiesis es para usar variable de entorno y si no esta definida se usa el valor por defecto
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-password}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - central-net
+    volumes:
+    #se agrega un volumen para que los datos de rabbitmq persistan y no se pierdan al reiniciar el contenedor
+      - rabbitmq-data:/var/lib/rabbitmq
+  #======================================================================
+  #Aqui esta el contenedor del worker de central-api que se conecta a rabbitmq para procesar los mensajes
+  #======================================================================
+  central-worker:
+    build: ./central-api
+    container_name: central-worker
+    command: python -m app.worker
+    environment:
+      CENTRAL_DATABASE_URL: mysql+pymysql://${CENTRAL_MYSQL_USER:-central}:${CENTRAL_MYSQL_PASSWORD:-central_password}@central-mysql:3306/${CENTRAL_MYSQL_DATABASE:-central}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-user}:${RABBITMQ_PASSWORD:-password}@rabbitmq:5672/
+    depends_on:
+      central-mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - central-net
 
   central-web:
     build: ./central-web
@@ -451,6 +497,7 @@ services:
         limits:
           cpus: "1.0"
           memory: 1G
+  
 
 networks:
   # Each site gets its own bridge. Isolation BETWEEN sites comes from that
@@ -495,3 +542,5 @@ volumes:
   store-2-data:
   central-data:
   gateway-data:
+  # One volume for RabbitMQ's persistent data. It is not shared with any store or with head office's MySQL, which is why it is not on central-net. It is
+  rabbitmq-data:

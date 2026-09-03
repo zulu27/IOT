@@ -31,13 +31,16 @@ class IngestionResult(NamedTuple):
     duplicates: list[int]
 
 
-def validate_batch(batch: BatchRequest) -> None:
+def validate_batch(session: Session, batch: BatchRequest) -> None:
     """Reject a batch that must not be written.
 
     Runs in full BEFORE anything is persisted: a batch is accepted whole or
     not at all, so a malformed invoice never lands half-ingested next to its
     valid siblings.
     """
+    #necesitamos revisar que la store exista
+    stores_service.require_store(session, batch.store_id)
+    #revisamos que el batch cumpla
     if not batch.invoices:
         raise InvalidBatchError("The batch carries no invoices")
 

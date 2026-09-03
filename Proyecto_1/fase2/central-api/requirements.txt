@@ -5,3 +5,5 @@ pymysql==1.1.1
 pydantic==2.10.4
 pytest==8.3.4
 cryptography==44.0.0
+#libreria necesaria poara comunicarse con rabbit mq
+pika==1.3.2
