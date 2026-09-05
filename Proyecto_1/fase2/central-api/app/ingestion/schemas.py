@@ -56,3 +56,9 @@ class BatchResponse(BaseModel):
     duplicates: list[int]
     accepted_count: int
     duplicate_count: int
+
+#Se agrego un nuevoi schema para confirmar que el batch fue recibido y validado correctamente
+class QueueResponse(BaseModel):
+    """Event published when a batch is ingested and validated successfully."""
+    store_id: str
+    queued: bool
