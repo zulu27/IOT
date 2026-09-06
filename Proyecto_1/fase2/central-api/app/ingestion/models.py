@@ -6,7 +6,8 @@ translation layer between the schema and the code.
 These are owned by ingestion, which writes them; the reports package reads
 them.
 """
-
+#agregado
+from app.stores.models import Store
 from datetime import datetime
 from decimal import Decimal
 

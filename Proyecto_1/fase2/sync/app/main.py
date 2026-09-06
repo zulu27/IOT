@@ -53,7 +53,15 @@ def run_once() -> bool:
         payload = schemas.build_batch(STORE_ID, invoices)
 
         try:
+            #aqui se crea el payload y se envia al central-api, si el central-api no responde, se queda en la cola
             result = client.send_batch(payload)
+            if result is None:
+                #si no se encolo, se queda en la cola y se reintenta en el siguiente ciclo
+                logger.warning(
+                    "Head office did not respond, %s invoices stay queued",
+                    len(invoices),
+                )
+                return False
         except client.CentralSiteUnavailableError as error:
             # Nothing is stamped. Every invoice stays queued and goes out on a
             # later cycle. The store is unaffected and keeps selling.
@@ -68,7 +76,7 @@ def run_once() -> bool:
         # response was lost after head office committed, the retry comes back
         # as "already have these" — and if we did not stamp them, the same
         # invoices would be resent forever.
-        accepted = result.get("accepted", [])
+        """accepted = result.get("accepted", [])
         duplicates = result.get("duplicates", [])
         confirmed = list(accepted) + list(duplicates)
 
@@ -78,10 +86,28 @@ def run_once() -> bool:
             len(accepted),
             len(duplicates),
             stamped,
-        )
+        )"""
 
-        # A count-triggered batch is capped at BATCH_SIZE, so there may be more
-        # waiting; loop immediately rather than sleeping on it.
+        #Como modificamos el central-api para que solo valide y no consuma, ahora solo confirmamos que se encolo correctamente
+        accepted = result.get("queued", False)
+
+        if accepted != True:
+            logger.warning(
+                "Head office did not confirm queuing, %s invoices stay queued",
+                len(invoices),
+            )
+            return False
+
+        #ahora solo revisamos que las invoice ids que se enviaron al central-api se marcaron como forwardeadas, si no, se reintenta en el siguiente ciclo
+        sale_ids = [invoice["store_invoice_id"] for invoice in invoices]
+        stamped = repository.mark_forwarded(session, sale_ids)
+
+        logger.info(
+            "Head office confirmed %s new and %s already held; %s marked forwarded",
+            len(sale_ids),
+            0,
+            stamped,
+        )
         return True
 
 
