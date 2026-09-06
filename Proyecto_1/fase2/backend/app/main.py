@@ -1,5 +1,7 @@
 """Backend application entry point.
 
+holi esta sincronizados
+
 Assembly only: configure logging, create the application, and include every
 router the service exposes. No route is registered anywhere else, so this file
 is the complete list of what the backend serves.

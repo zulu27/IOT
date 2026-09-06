@@ -1,0 +1,11 @@
+# Los scripts de shell SIEMPRE deben tener finales de línea LF,
+# sin importar el sistema operativo del que vengan o al que vayan.
+# Esto evita el error "no such file or directory" al ejecutar
+# scripts dentro de contenedores Linux cuando alguien clona el repo
+# desde Windows.
+*.sh text eol=lf
+
+# Buena práctica general: normaliza el resto de archivos de texto
+# según el sistema operativo de quien los usa, pero mantiene
+# binarios intactos (no los toca).
+* text=auto
