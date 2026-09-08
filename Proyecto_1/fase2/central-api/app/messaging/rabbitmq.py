@@ -39,33 +39,3 @@ def publish_to_queue(message: dict):
 
     connection.close()
 
-
-def get_invoice():
-    """Remove one invoice from the queue."""
-
-    connection = get_connection()
-    channel = connection.channel()
-
-    channel.queue_declare(
-        queue=QUEUE_NAME,
-        durable=True,
-    )
-
-    method, properties, body = channel.basic_get(
-        queue=QUEUE_NAME,
-        auto_ack=False,
-    )
-
-    if method is None:
-        connection.close()
-        return None
-
-    message = json.loads(body)
-
-    channel.basic_ack(
-        delivery_tag=method.delivery_tag
-    )
-
-    connection.close()
-
-    return message

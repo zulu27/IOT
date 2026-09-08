@@ -19,31 +19,7 @@ from app.messaging.rabbitmq import publish_to_queue
 
 router = APIRouter(prefix="/sales", tags=["ingestion"])
 
-"""
-@router.post("/batch", response_model=BatchResponse)
-def ingest_batch(
-    batch: BatchRequest,
-    session: Session = Depends(get_session),
-) -> BatchResponse:
-    try:
-        result = service.ingest_batch(session, batch)
-    except UnknownStoreError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
-        ) from error
-    except service.InvalidBatchError as error:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)
-        ) from error
 
-    return BatchResponse(
-        store_id=batch.store_id,
-        accepted=result.accepted,
-        duplicates=result.duplicates,
-        accepted_count=len(result.accepted),
-        duplicate_count=len(result.duplicates),
-    )
-"""
 
 @router.post("/batch", response_model=QueueResponse)
 def ingest_batch(
@@ -54,7 +30,6 @@ def ingest_batch(
     try:
         #ya service no consume y guarda los datos en la base de datos, ahora solo confirma
         #que los datos sean validos
-        #result = service.ingest_batch(session, batch)
         service.validate_batch(session,batch)
         #Publicamos cada factura en RabbitMQ para que el microservicio de facturas las consuma y las guarde en la base de datos
         
@@ -62,8 +37,6 @@ def ingest_batch(
             message = {
                 #guardamos de que store es el batch
                 "store_id": batch.store_id,
-                
-                
                 "invoice": invoice.model_dump(mode="json")
             }
             publish_to_queue(message)

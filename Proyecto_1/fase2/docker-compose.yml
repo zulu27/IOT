@@ -392,7 +392,7 @@ services:
     environment:
       CENTRAL_DATABASE_URL: mysql+pymysql://${CENTRAL_MYSQL_USER:-central}:${CENTRAL_MYSQL_PASSWORD:-central_password}@central-mysql:3306/${CENTRAL_MYSQL_DATABASE:-central}
       TOP_PRODUCTS_LIMIT: ${TOP_PRODUCTS_LIMIT:-10}
-      #se agrega para poder ingresar a el rabbitmq desde el contenedor de central-api
+      #se agrega para poder ingresar con pika a el rabbitmq desde el contenedor de central-api
       RABBITMQ_URL: amqp://user:password@rabbitmq:5672/
     ports:
       - "${CENTRAL_API_HOST_PORT:-18100}:8000"
@@ -422,7 +422,8 @@ services:
     ports:
     #puerto de rabbit mq
     #los parentiesis es para usar variable de entorno y si no esta definida se usa el valor por defecto
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    # - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-user}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-password}
