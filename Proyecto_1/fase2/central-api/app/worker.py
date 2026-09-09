@@ -23,7 +23,8 @@ def process_factura(factura,received_at: datetime | None = None,):
                 )
         print("Factura procesada y guardada en la base de datos.")
     except DuplicateInvoiceError:
-        res = False
+        res = True
+        print("Factura duplicada, no se guardó en la base de datos.")
     else:
         res = True
 
