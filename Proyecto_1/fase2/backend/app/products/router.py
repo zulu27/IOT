@@ -12,13 +12,16 @@ from app.core.database import get_session
 from app.products import service
 from app.products.schemas import ProductResponse
 
-router = APIRouter(prefix="/products", tags=["products"])
 
+router = APIRouter(prefix="/products", tags=["products"])
+#todas las rutas empiezan por el prefico /products
 
 @router.get("/{ean}", response_model=ProductResponse)
 def get_product(
     ean: str,
     session: Session = Depends(get_session),
+    #Esto de se llama inyeccion de dependencias
+    #Antes de ejecutar cualquier cosa ejecuta get_session()
 ) -> ProductResponse:
     try:
         product = service.get_product(session, ean)

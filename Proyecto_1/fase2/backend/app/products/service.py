@@ -5,17 +5,27 @@ exceptions and returns plain objects, which is what makes it unit testable
 without starting a server.
 """
 
+<<<<<<< Updated upstream
 import logging
 import threading
 
 from cachetools import TTLCache
 from sqlalchemy.orm import Session
+=======
+import json
+import logging
+import os
+>>>>>>> Stashed changes
 
+import redis
+from sqlalchemy.orm import Session
+from decimal import Decimal
 from app.products import repository
 from app.products.models import Product
 
 logger = logging.getLogger(__name__)
 
+<<<<<<< Updated upstream
 # --- Cache de productos por EAN ------------------------------------------
 #
 # La "libretita" del mesero: guarda hasta PRODUCT_CACHE_MAXSIZE productos,
@@ -30,6 +40,21 @@ PRODUCT_CACHE_MAXSIZE = 512
 
 _product_cache: TTLCache = TTLCache(maxsize=PRODUCT_CACHE_MAXSIZE, ttl=PRODUCT_CACHE_TTL_SECONDS)
 _product_cache_lock = threading.Lock()
+=======
+# --- Cache de productos por EAN (Redis) ----------------------------------
+#
+# La "pizarra compartida": vive en su propio contenedor (store-N-redis), no
+# en el proceso del backend. Cada producto se guarda como JSON bajo la clave
+# "product:{ean}", con expiración automática (TTL) manejada por el propio
+# Redis.
+PRODUCT_CACHE_TTL_SECONDS = 60
+PRODUCT_CACHE_KEY_PREFIX = "product:"
+
+_redis_client = redis.Redis.from_url(
+    os.environ["REDIS_URL"],
+    decode_responses=True,  # nos devuelve str en vez de bytes
+)
+>>>>>>> Stashed changes
 
 
 class ProductNotFoundError(Exception):
@@ -40,9 +65,36 @@ class ProductNotFoundError(Exception):
         self.ean = ean
 
 
+def _cache_key(ean: str) -> str:
+    return f"{PRODUCT_CACHE_KEY_PREFIX}{ean}"
+
+#Recibe un obejto producto, por lo general desde el repositorio y
+#Lo transforma en un JSON para guardarlo en la cache como string
+def _product_to_cache_value(product: Product) -> str:
+    """Serializa solo los campos que el cajero necesita ver."""
+    return json.dumps(
+        {
+            "ean": product.ean,
+            "name": product.name,
+            "price": str(product.price),
+        }
+    )
+
+#Recibe un formato JSON e inicializa un objeto Product con esos
+#Atributos. Devuelve ese producto
+def _cache_value_to_product(raw: str) -> Product:
+    data = json.loads(raw)
+    return Product(
+        ean=data["ean"],
+        name=data["name"],
+        price=Decimal(data["price"]),
+    )
+
+#
 def get_product(session: Session, ean: str) -> Product:
     """Return the product for this barcode, or raise ProductNotFoundError.
 
+<<<<<<< Updated upstream
     Checks the in-memory cache first. On a miss, falls back to the
     repository, then stores the result before returning it.
     """
@@ -51,12 +103,22 @@ def get_product(session: Session, ean: str) -> Product:
     if cached is not None:
         logger.info("Cache HIT for EAN %s", ean)
         return cached
+=======
+    Checks Redis first. On a miss, falls back to the repository, then stores
+    the result in Redis before returning it.
+    """
+    cached = _redis_client.get(_cache_key(ean))
+    if cached is not None:
+        logger.info("Cache HIT for EAN %s", ean)
+        return _cache_value_to_product(cached)
+>>>>>>> Stashed changes
 
     logger.info("Cache MISS for EAN %s, querying database", ean)
     product = repository.find_product_by_ean(session, ean)
     if product is None:
         raise ProductNotFoundError(ean)
 
+<<<<<<< Updated upstream
     # Desconecta el objeto de la sesión antes de guardarlo: así puede vivir
     # en la caché y ser leído en peticiones futuras sin depender de una
     # sesión que ya se cerró. Los valores de sus columnas ya están cargados
@@ -65,6 +127,16 @@ def get_product(session: Session, ean: str) -> Product:
 
     with _product_cache_lock:
         _product_cache[ean] = product
+=======
+    #guarda en JSON en formato str con los atributos del producto
+    #la llave es el ean, y vive en la cache durante PRODUCT_CACHE_TTL_SECONDS
+    #Segundos
+    _redis_client.setex(
+        _cache_key(ean),
+        PRODUCT_CACHE_TTL_SECONDS,
+        _product_to_cache_value(product),
+    )
+>>>>>>> Stashed changes
 
     return product
 

@@ -54,6 +54,28 @@ services:
           cpus: "2.0"
           memory: 8G
 
+# ------------------------------------------------------------------------------
+#                 SERVICIO DE CACHE REDIS PARA LA PRIMERA TIENDA
+#-------------------------------------------------------------------------------
+
+  store-1-redis:
+    image: redis:7-alpine
+    container_name: store-1-redis
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      # Solo la red de su propia tienda — igual que store-1-postgres, nunca
+      # accesible desde store-2 ni desde head office.
+      - store-1-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
   store-1-backend:
     build: ./backend
     container_name: store-1-backend
@@ -63,12 +85,15 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-store}:${POSTGRES_PASSWORD:-store_password}@store-1-postgres:5432/${POSTGRES_DB:-store}
       PAYMENT_GATEWAY_URL: http://payment-gateway:5000
       PAYMENT_GATEWAY_TIMEOUT_SECONDS: ${PAYMENT_GATEWAY_TIMEOUT_SECONDS:-5}
+      REDIS_URL: redis://store-1-redis:6379/0
     ports:
       - "${STORE_1_BACKEND_HOST_PORT:-18000}:8000"
     depends_on:
       store-1-postgres:
         # Wait until PostgreSQL actually accepts connections, not merely until
         # its container started.
+        condition: service_healthy
+      store-1-redis:
         condition: service_healthy
     networks:
       # Its own store's LAN, plus the simulated internet — because charging a
@@ -227,6 +252,28 @@ services:
           cpus: "2.0"
           memory: 8G
 
+#----------------------------------------------------------------
+#        SERVICIO DE CACHE CON REDIS PARA LA SEGUNDA TIENDA
+#----------------------------------------------------------------
+  store-2-redis:
+    image: redis:7-alpine
+    container_name: store-2-redis
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      # Solo la red de su propia tienda — igual que store-2-postgres, nunca
+      # accesible desde store-1 ni desde head office.
+      - store-2-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+
   store-2-backend:
     build: ./backend
     container_name: store-2-backend
@@ -236,10 +283,13 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-store}:${POSTGRES_PASSWORD:-store_password}@store-2-postgres:5432/${POSTGRES_DB:-store}
       PAYMENT_GATEWAY_URL: http://payment-gateway:5000
       PAYMENT_GATEWAY_TIMEOUT_SECONDS: ${PAYMENT_GATEWAY_TIMEOUT_SECONDS:-5}
+      REDIS_URL: redis://store-2-redis:6379/0
     ports:
       - "${STORE_2_BACKEND_HOST_PORT:-18001}:8000"
     depends_on:
       store-2-postgres:
+        condition: service_healthy
+      store-2-redis:
         condition: service_healthy
     networks:
       - store-2-net
