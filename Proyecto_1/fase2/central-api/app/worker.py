@@ -30,7 +30,7 @@ def process_factura(factura,received_at: datetime | None = None,):
 
     if res:
         session.commit()
-
+    session.close()
 
 
 
